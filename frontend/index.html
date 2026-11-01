@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lost & Found Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header and navigation -->
+  <header>
+    <h1>Lost &amp; Found Management System</h1>
+    <nav>
+      <a href="#summary">Summary</a>
+      <a href="#add-item">Add Item</a>
+      <a href="#search">Search</a>
+      <a href="#items">All Items</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h2>Summary</h2>
+      <div class="cards">
+        <div class="card"><span class="count" id="total-lost">0</span><span>Total Lost</span></div>
+        <div class="card"><span class="count" id="total-found">0</span><span>Total Found</span></div>
+        <div class="card"><span class="count" id="total-open">0</span><span>Open</span></div>
+        <div class="card"><span class="count" id="total-claimed">0</span><span>Claimed</span></div>
+      </div>
+    </section>
+
+    <!-- Add item form -->
+    <section id="add-item">
+      <h2>Report an Item</h2>
+      <form id="item-form">
+
+        <!-- Hidden field for editing -->
+        <input type="hidden" id="edit-id" value="">
+
+        <h3>Item Details</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="type">Type</label>
+            <select id="type" name="type" required>
+              <option value="LOST">Lost</option>
+              <option value="FOUND">Found</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="name">Item Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g. Black wallet" required>
+          </div>
+
+          <div class="field">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option>Electronics</option>
+              <option>Documents</option>
+              <option>Bags</option>
+              <option>Keys</option>
+              <option>Jewellery</option>
+              <option>Clothing</option>
+              <option>Wallet</option>
+              <option>Others</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="location">Location</label>
+            <input type="text" id="location" name="location" placeholder="Where it was lost or found" required>
+          </div>
+
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required>
+          </div>
+
+          <div class="field full">
+            <label for="description">Description (optional)</label>
+            <textarea id="description" name="description" rows="3" placeholder="Colour, brand, any marks"></textarea>
+          </div>
+        </div>
+
+        <h3>Owner / Reporter Details</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="owner-name">Your Name</label>
+            <input type="text" id="owner-name" name="owner_name" required>
+          </div>
+
+          <div class="field">
+            <label for="owner-phone">Phone (10 digits)</label>
+            <input type="tel" id="owner-phone" name="owner_phone" pattern="[0-9]{10}" maxlength="10" required>
+          </div>
+
+          <div class="field">
+            <label for="owner-email">Email (optional)</label>
+            <input type="email" id="owner-email" name="owner_email">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn">Save Item</button>
+          <button type="reset" class="secondary" onclick="cancelEdit()">Clear</button>
+        </div>
+        <p id="form-msg" class="msg"></p>
+      </form>
+    </section>
+
+    <!-- Search -->
+    <section id="search">
+      <h2>Search Items</h2>
+      <div class="search-form">
+        <input type="text" id="search-keyword" placeholder="Search by item name">
+        <select id="search-category">
+          <option value="">All categories</option>
+          <option>Electronics</option>
+          <option>Documents</option>
+          <option>Bags</option>
+          <option>Keys</option>
+          <option>Jewellery</option>
+          <option>Clothing</option>
+          <option>Wallet</option>
+          <option>Others</option>
+        </select>
+        <select id="search-type">
+          <option value="">Lost and Found</option>
+          <option value="LOST">Lost</option>
+          <option value="FOUND">Found</option>
+        </select>
+        <button type="button" onclick="searchItems()">Search</button>
+      </div>
+    </section>
+
+    <!-- Items table -->
+    <section id="items">
+      <h2>All Items</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Location</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Owner</th>
+              <th>Phone</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            <!-- Rows populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+      <p id="no-records" class="msg" style="display:none;">(No records found)</p>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Lost &amp; Found Management System | Minor Project</p>
+  </footer>
+
+  <script>
+    // ── API base URL ─────────────────────────────────────────────────
+    const API = "http://localhost:8080/api";
+
+    // ── Load data on page load ───────────────────────────────────────
+    window.addEventListener("DOMContentLoaded", () => {
+      loadSummary();
+      loadAllItems();
+
+      // Set max date to today
+      document.getElementById("date").max = new Date().toISOString().split("T")[0];
+    });
+
+    // ── SUMMARY ──────────────────────────────────────────────────────
+
+    async function loadSummary() {
+      try {
+        const res = await fetch(API + "/summary");
+        const data = await res.json();
+        document.getElementById("total-lost").textContent    = data.totalLost;
+        document.getElementById("total-found").textContent   = data.totalFound;
+        document.getElementById("total-open").textContent     = data.totalOpen;
+        document.getElementById("total-claimed").textContent  = data.totalClaimed;
+      } catch (err) {
+        console.error("Failed to load summary:", err);
+      }
+    }
+
+    // ── LOAD ALL ITEMS ───────────────────────────────────────────────
+
+    async function loadAllItems() {
+      try {
+        const res = await fetch(API + "/items");
+        const items = await res.json();
+        renderTable(items);
+      } catch (err) {
+        console.error("Failed to load items:", err);
+      }
+    }
+
+    // ── SEARCH ───────────────────────────────────────────────────────
+
+    async function searchItems() {
+      const keyword  = document.getElementById("search-keyword").value.trim();
+      const category = document.getElementById("search-category").value;
+      const type     = document.getElementById("search-type").value;
+
+      const params = new URLSearchParams();
+      if (keyword)  params.append("keyword", keyword);
+      if (category) params.append("category", category);
+      if (type)     params.append("type", type);
+
+      try {
+        const res = await fetch(API + "/items/search?" + params.toString());
+        const items = await res.json();
+        renderTable(items);
+      } catch (err) {
+        console.error("Search failed:", err);
+      }
+    }
+
+    // ── RENDER TABLE ─────────────────────────────────────────────────
+
+    function renderTable(items) {
+      const tbody = document.getElementById("items-body");
+      const noRec = document.getElementById("no-records");
+
+      if (items.length === 0) {
+        tbody.innerHTML = "";
+        noRec.style.display = "block";
+        return;
+      }
+      noRec.style.display = "none";
+
+      tbody.innerHTML = items.map(item => `
+        <tr>
+          <td>${item.itemId}</td>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(item.category)}</td>
+          <td>${escapeHtml(item.location)}</td>
+          <td>${item.itemDate}</td>
+          <td><span class="badge ${item.type === 'LOST' ? 'badge-lost' : 'badge-found'}">${item.type}</span></td>
+          <td><span class="badge ${item.status === 'OPEN' ? 'badge-open' : 'badge-claimed'}">${item.status}</span></td>
+          <td>${escapeHtml(item.ownerName)}</td>
+          <td>${item.ownerPhone}</td>
+          <td class="row-actions">
+            <button type="button" class="small" onclick="editItem(${item.itemId})">Edit</button>
+            <button type="button" class="small" onclick="toggleStatus(${item.itemId}, '${item.status}')">
+              ${item.status === 'OPEN' ? 'Mark Claimed' : 'Re-open'}
+            </button>
+            <button type="button" class="small danger" onclick="deleteItem(${item.itemId}, '${escapeAttr(item.name)}')">Delete</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // ── ADD / UPDATE ITEM (form submit) ──────────────────────────────
+
+    document.getElementById("item-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("form-msg");
+      const editId = document.getElementById("edit-id").value;
+
+      const item = {
+        name:        document.getElementById("name").value.trim(),
+        category:    document.getElementById("category").value,
+        description: document.getElementById("description").value.trim() || null,
+        location:    document.getElementById("location").value.trim(),
+        itemDate:    document.getElementById("date").value,
+        type:        document.getElementById("type").value,
+        status:      "OPEN",
+        ownerName:   document.getElementById("owner-name").value.trim(),
+        ownerPhone:  document.getElementById("owner-phone").value.trim(),
+        ownerEmail:  document.getElementById("owner-email").value.trim() || null
+      };
+
+      try {
+        let res;
+        if (editId) {
+          // Update existing item
+          item.itemId = parseInt(editId);
+          res = await fetch(API + "/items/" + editId, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item)
+          });
+        } else {
+          // Add new item
+          res = await fetch(API + "/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item)
+          });
+        }
+
+        const result = await res.json();
+        if (result.success) {
+          msg.textContent = editId ? "Item updated successfully!" : "Item added successfully with ID " + result.id + "!";
+          msg.className = "msg success";
+          document.getElementById("item-form").reset();
+          document.getElementById("edit-id").value = "";
+          document.getElementById("submit-btn").textContent = "Save Item";
+          loadAllItems();
+          loadSummary();
+        } else {
+          msg.textContent = "Failed: " + (result.error || "Unknown error");
+          msg.className = "msg error";
+        }
+      } catch (err) {
+        msg.textContent = "Server error. Is the backend running?";
+        msg.className = "msg error";
+      }
+    });
+
+    // ── EDIT ITEM ────────────────────────────────────────────────────
+
+    async function editItem(id) {
+      try {
+        const res = await fetch(API + "/items/" + id);
+        const item = await res.json();
+        if (!item || item.error) { alert("Item not found."); return; }
+
+        document.getElementById("edit-id").value     = item.itemId;
+        document.getElementById("type").value         = item.type;
+        document.getElementById("name").value         = item.name;
+        document.getElementById("category").value     = item.category;
+        document.getElementById("description").value  = item.description || "";
+        document.getElementById("location").value     = item.location;
+        document.getElementById("date").value         = item.itemDate;
+        document.getElementById("owner-name").value   = item.ownerName;
+        document.getElementById("owner-phone").value  = item.ownerPhone;
+        document.getElementById("owner-email").value  = item.ownerEmail || "";
+
+        document.getElementById("submit-btn").textContent = "Update Item";
+        document.getElementById("form-msg").textContent = "Editing item #" + id + ". Change fields and click Update.";
+        document.getElementById("form-msg").className = "msg info";
+
+        // Scroll to form
+        document.getElementById("add-item").scrollIntoView({ behavior: "smooth" });
+      } catch (err) {
+        alert("Failed to load item for editing.");
+      }
+    }
+
+    function cancelEdit() {
+      document.getElementById("edit-id").value = "";
+      document.getElementById("submit-btn").textContent = "Save Item";
+      document.getElementById("form-msg").textContent = "";
+    }
+
+    // ── TOGGLE STATUS ────────────────────────────────────────────────
+
+    async function toggleStatus(id, currentStatus) {
+      const newStatus = currentStatus === "OPEN" ? "CLAIMED" : "OPEN";
+      try {
+        const res = await fetch(API + "/items/" + id + "/status", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const result = await res.json();
+        if (result.success) {
+          loadAllItems();
+          loadSummary();
+        } else {
+          alert("Failed to update status.");
+        }
+      } catch (err) {
+        alert("Server error.");
+      }
+    }
+
+    // ── DELETE ITEM ──────────────────────────────────────────────────
+
+    async function deleteItem(id, name) {
+      if (!confirm("Are you sure you want to delete \"" + name + "\" (ID: " + id + ")?")) return;
+
+      try {
+        const res = await fetch(API + "/items/" + id, { method: "DELETE" });
+        const result = await res.json();
+        if (result.success) {
+          loadAllItems();
+          loadSummary();
+        } else {
+          alert("Failed to delete item.");
+        }
+      } catch (err) {
+        alert("Server error.");
+      }
+    }
+
+    // ── UTILITY ──────────────────────────────────────────────────────
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    /** Escapes a string for safe use inside HTML attribute single quotes (e.g. onclick='...'). */
+    function escapeAttr(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/'/g, "&#39;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+
+</body>
+</html>
+

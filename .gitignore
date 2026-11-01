@@ -1,0 +1,11 @@
+# Build output
+out/
+
+# SQLite database (generated at runtime)
+*.db
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.class
